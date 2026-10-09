@@ -1,0 +1,1336 @@
+<!DOCTYPE html>
+<html lang="th" class="dark">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Dashboard ติดตามผลสุขภาพ คนลำปาง บ้านท่าหลวง หุ่นดี ไม่ป่วย NCDs</title>
+  
+  <!-- Tailwind CSS -->
+  <script src="https://cdn.tailwindcss.com"></script>
+  <script>
+    tailwind.config = {
+      darkMode: 'class',
+      theme: {
+        extend: {
+          colors: {
+            brand: {
+              50: '#f0fdf4',
+              500: '#10b981',
+              600: '#059669',
+              900: '#064e3b',
+            },
+            darkbg: '#0B0F19',
+            cardbg: '#151C2C',
+            cardborder: '#232D42',
+            accent: '#00F2FE'
+          },
+          fontFamily: {
+            sans: ['Sarabun', 'Inter', 'sans-serif'],
+          }
+        }
+      }
+    }
+  </script>
+
+  <!-- Google Fonts & Font Awesome Icons -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Sarabun:wght@300;400;500;600;700;800&display=swap" rel="stylesheet">
+  <link rel="stylesheet" href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.4.0/css/all.min.css">
+
+  <!-- Chart.js -->
+  <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
+
+  <style>
+    body {
+      font-family: 'Sarabun', sans-serif;
+      background-color: #0B0F19;
+      color: #E2E8F0;
+    }
+    /* Custom Scrollbar */
+    ::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    ::-webkit-scrollbar-track {
+      background: #0F172A;
+    }
+    ::-webkit-scrollbar-thumb {
+      background: #334155;
+      border-radius: 4px;
+    }
+    ::-webkit-scrollbar-thumb:hover {
+      background: #475569;
+    }
+    .glass-card {
+      background: rgba(21, 28, 44, 0.85);
+      backdrop-filter: blur(12px);
+      border: 1px solid #232D42;
+      box-shadow: 0 8px 32px 0 rgba(0, 0, 0, 0.37);
+    }
+    .glow-effect {
+      box-shadow: 0 0 15px rgba(16, 185, 129, 0.2);
+    }
+  </style>
+</head>
+<body class="min-h-screen pb-12">
+
+  <!-- Top Navigation & Header -->
+  <header class="bg-slate-900/90 border-b border-slate-800 sticky top-0 z-40 backdrop-blur-md">
+    <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-3 flex flex-wrap items-center justify-between gap-4">
+      <div class="flex items-center gap-3">
+        <div class="w-11 h-11 rounded-xl bg-gradient-to-tr from-emerald-600 to-teal-400 flex items-center justify-center text-slate-950 font-bold text-xl shadow-lg shadow-emerald-500/20">
+          <i class="fa-solid font-bold fa-heart-pulse"></i>
+        </div>
+        <div>
+          <h1 class="text-lg sm:text-xl font-bold bg-gradient-to-r from-emerald-400 via-teal-300 to-cyan-400 bg-clip-text text-transparent">
+            ติดตามผลสุขภาพและพฤติกรรมสุขภาพ คนลำปาง
+          </h1>
+          <p class="text-xs text-slate-400 font-medium">
+            บ้านท่าหลวง หุ่นดี ไม่ป่วย NCDs ( Google Sheet Integrated Dashboard )
+          </p>
+        </div>
+      </div>
+
+      <!-- Controls & Data Sheet Modal Trigger Button -->
+      <div class="flex items-center gap-2 flex-wrap">
+        <!-- Live Connection Status Badge -->
+        <div id="liveStatusBadge" class="px-2.5 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-lg text-xs font-semibold flex items-center gap-1.5">
+          <span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span>
+          <span>ข้อมูลจำลอง (Offline)</span>
+        </div>
+
+        <!-- Sync / Config Button -->
+        <button onclick="toggleConfigModal()" class="px-3 py-2 bg-gradient-to-r from-emerald-600 to-teal-600 hover:from-emerald-500 hover:to-teal-500 text-slate-950 font-bold rounded-lg text-xs flex items-center gap-2 shadow-lg shadow-emerald-500/20 transition">
+          <i class="fa-solid fa-plug text-slate-950"></i>
+          <span>เชื่อมโยง Google Sheet</span>
+        </button>
+
+        <button onclick="toggleSheetModal()" class="px-3 py-2 bg-slate-800 hover:bg-slate-700 text-teal-300 rounded-lg text-xs font-semibold border border-teal-500/30 flex items-center gap-2 transition">
+          <i class="fa-solid fa-table-cells text-emerald-400"></i>
+          <span>ดูข้อมูล Google Sheets</span>
+        </button>
+      </div>
+    </div>
+  </header>
+
+  <!-- Top Filter & Control Toolbar -->
+  <div class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6">
+    <div class="glass-card rounded-2xl p-4 flex flex-wrap items-center justify-between gap-4 border border-slate-800">
+      
+      <!-- Mode Toggle Buttons -->
+      <div class="flex items-center gap-1 bg-slate-900 p-1 rounded-xl border border-slate-800">
+        <button id="btn-mode-individual" onclick="setMode('individual')" class="px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 bg-emerald-500 text-slate-950 shadow">
+          <i class="fa-solid fa-user"></i>
+          <span>รายบุคคล (Individual)</span>
+        </button>
+        <button id="btn-mode-group" onclick="setMode('group')" class="px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-slate-200">
+          <i class="fa-solid fa-users"></i>
+          <span>ภาพรวมรายกลุ่ม (Group)</span>
+        </button>
+      </div>
+
+      <!-- Filters Wrapper -->
+      <div class="flex items-center gap-3 flex-wrap flex-1 justify-end">
+        
+        <!-- Member Search / Select Input (Individual Mode) -->
+        <div id="individual-filter-wrapper" class="relative min-w-[260px] flex-1 max-w-sm">
+          <label class="block text-[10px] text-slate-400 mb-1 font-semibold">
+            <i class="fa-solid fa-magnifying-glass text-emerald-400 mr-1"></i> ค้นหารหัสบุคคล หรือ ชื่อผู้เข้าร่วม:
+          </label>
+          <div class="relative">
+            <input type="text" id="memberSearchInput" oninput="filterMemberList()" onfocus="showDropdown()" placeholder="พิมพ์ รหัสบุคคล หรือ ชื่อ..."
+              class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 font-medium pr-8">
+            <i class="fa-solid fa-chevron-down absolute right-3 top-2.5 text-slate-500 text-xs pointer-events-none"></i>
+          </div>
+          <!-- Dropdown List -->
+          <div id="memberDropdownList" class="absolute left-0 right-0 top-full mt-1 bg-slate-900 border border-slate-700 rounded-xl shadow-2xl max-h-56 overflow-y-auto z-50 hidden divide-y divide-slate-800">
+          </div>
+        </div>
+
+        <!-- Group Selector (Group Mode / Filter) -->
+        <div id="group-filter-wrapper" class="min-w-[200px]">
+          <label class="block text-[10px] text-slate-400 mb-1 font-semibold">
+            <i class="fa-solid fa-layer-group text-teal-400 mr-1"></i> เลือกสังกัดกลุ่ม/ภาวะสุขภาพ:
+          </label>
+          <select id="groupSelect" onchange="onGroupSelectChange()" class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 font-medium">
+            <option value="ALL">ทุกกลุ่มทั้งหมด</option>
+            <option value="กลุ่มเสี่ยง NCDs">กลุ่มเสี่ยง NCDs</option>
+            <option value="กลุ่มเบาหวาน/ความดัน">กลุ่มเบาหวาน/ความดัน</option>
+            <option value="กลุ่มรอบเอวเกิน">กลุ่มรอบเอวเกิน</option>
+            <option value="กลุ่มประชาชนทั่วไป">กลุ่มประชาชนทั่วไป</option>
+          </select>
+        </div>
+
+        <!-- Date Selector for Daily_Log -->
+        <div id="date-filter-wrapper" class="min-w-[170px]">
+          <label class="block text-[10px] text-slate-400 mb-1 font-semibold">
+            <i class="fa-solid fa-calendar-day text-cyan-400 mr-1"></i> เลือกวันที่ดูข้อมูล (Daily Log):
+          </label>
+          <input type="date" id="selectedDateInput" value="2026-09-27" min="2026-01-01" max="2026-12-31" onchange="onDateChange()"
+            class="w-full bg-slate-900 border border-slate-700 rounded-xl px-3 py-2 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 font-medium">
+        </div>
+
+      </div>
+
+    </div>
+  </div>
+
+  <!-- MAIN DASHBOARD CONTENT AREA -->
+  <main class="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 pt-6 space-y-6">
+
+    <!-- MEMBER / GROUP PROFILE BANNER CONTAINER -->
+    <div id="memberInfoBanner"></div>
+
+    <!-- SECTION 1: HEALTH STATUS SUMMARY CARDS (Baseline vs Selected Date) -->
+    <div class="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+      
+      <!-- Card 1: Weight -->
+      <div class="glass-card rounded-2xl p-4 border-t-2 border-t-emerald-500 flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs text-slate-400 font-semibold"><i class="fa-solid fa-weight-scale text-emerald-400 mr-1.5"></i> น้ำหนักตัว</span>
+          <span id="card-weight-delta" class="font-bold px-2 py-0.5 rounded-full text-[11px] bg-emerald-500/20 text-emerald-400">-0.0 kg</span>
+        </div>
+        <div>
+          <div id="card-weight-current" class="text-2xl font-black text-slate-100 mb-1">-- kg</div>
+          <div class="text-[11px] text-slate-400 flex items-center justify-between">
+            <span>แรกรับ (Baseline):</span>
+            <span id="card-weight-baseline" class="font-bold text-slate-300">-- kg</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 2: BMI -->
+      <div class="glass-card rounded-2xl p-4 border-t-2 border-t-teal-500 flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs text-slate-400 font-semibold"><i class="fa-solid fa-calculator text-teal-400 mr-1.5"></i> ดัชนีมวลกาย (BMI)</span>
+          <span id="card-bmi-status" class="font-bold px-2 py-0.5 rounded-full text-[11px] bg-emerald-500/20 text-emerald-400">ปกติ</span>
+        </div>
+        <div>
+          <div id="card-bmi-current" class="text-2xl font-black text-slate-100 mb-1">--</div>
+          <div class="text-[11px] text-slate-400 flex items-center justify-between">
+            <span>แรกรับ (Baseline):</span>
+            <span id="card-bmi-baseline" class="font-bold text-slate-300">--</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 3: Waist Circumference -->
+      <div class="glass-card rounded-2xl p-4 border-t-2 border-t-cyan-500 flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs text-slate-400 font-semibold"><i class="fa-solid fa-ruler-horizontal text-cyan-400 mr-1.5"></i> รอบเอว (cm)</span>
+          <span id="card-waist-delta" class="font-bold px-2 py-0.5 rounded-full text-[11px] bg-emerald-500/20 text-emerald-400">-0 cm</span>
+        </div>
+        <div>
+          <div id="card-waist-current" class="text-2xl font-black text-slate-100 mb-1">-- cm</div>
+          <div class="text-[11px] text-slate-400 flex items-center justify-between">
+            <span>แรกรับ (Baseline):</span>
+            <span id="card-waist-baseline" class="font-bold text-slate-300">-- cm</span>
+          </div>
+        </div>
+      </div>
+
+      <!-- Card 4: Daily Total Health Score -->
+      <div class="glass-card rounded-2xl p-4 border-t-2 border-t-indigo-500 flex flex-col justify-between">
+        <div class="flex items-center justify-between mb-2">
+          <span class="text-xs text-slate-400 font-semibold"><i class="fa-solid fa-star text-amber-400 mr-1.5"></i> คะแนนสุขภาพรวมประจำวัน</span>
+          <span id="card-score-badge" class="font-bold px-2 py-0.5 rounded-full text-[11px] bg-emerald-500/20 text-emerald-400">ดี</span>
+        </div>
+        <div>
+          <div id="card-score-current" class="text-2xl font-black text-amber-400 mb-1">-- / 100</div>
+          <div class="text-[11px] text-slate-400 flex items-center justify-between">
+            <span>เป้าหมายเกณฑ์ดี:</span>
+            <span class="font-bold text-emerald-400">≥ 80 คะแนน</span>
+          </div>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- SECTION 2: 5-DIMENSION SPIDER RADAR CHART & BEHAVIORAL FEEDBACK -->
+    <div class="grid grid-cols-1 lg:grid-cols-12 gap-6">
+      
+      <!-- Left Column: Radar Chart + 5-Dimension Mini Cards Grid -->
+      <div class="lg:col-span-6 glass-card rounded-2xl p-5 flex flex-col justify-between space-y-4">
+        <div class="flex items-center justify-between border-b border-slate-800 pb-3">
+          <div>
+            <h3 class="font-bold text-slate-100 text-sm sm:text-base flex items-center gap-2">
+              <i class="fa-solid fa-chart-pie text-emerald-400"></i>
+              ส่วนที่ 2: โครงข่ายใยแมงมุม 5 ด้าน ประเมินพฤติกรรมสุขภาพ
+            </h3>
+            <p class="text-[11px] text-slate-400">ประจำวันที่: <span id="radar-date-display" class="font-semibold text-emerald-400">2026-09-27</span></p>
+          </div>
+          <span class="text-[10px] bg-emerald-950 text-emerald-300 border border-emerald-800 px-2 py-1 rounded-lg">Daily Log</span>
+        </div>
+
+        <!-- Canvas Container -->
+        <div class="relative w-full max-w-md mx-auto aspect-square flex items-center justify-center py-2">
+          <canvas id="spiderRadarChart"></canvas>
+        </div>
+
+        <!-- 5 Dimension Status Badges Grid -->
+        <div id="dimension-cards-grid" class="grid grid-cols-5 gap-2 pt-2 border-t border-slate-800">
+        </div>
+      </div>
+
+      <!-- Right Column: Personal Advice & Motivational Guidance -->
+      <div class="lg:col-span-6 glass-card rounded-2xl p-5 flex flex-col justify-between space-y-4">
+        <div class="border-b border-slate-800 pb-3">
+          <h3 class="font-bold text-slate-100 text-sm sm:text-base flex items-center gap-2">
+            <i class="fa-solid fa-lightbulb text-amber-400"></i>
+            คำแนะนำพฤติกรรมและการกระตุ้นส่งกำลังใจ
+          </h3>
+          <p class="text-[11px] text-slate-400">การวิเคราะห์จุดที่ควรปรับปรุง/เสี่ยง และข้อเสนอแนะในการดูแลสุขภาพ</p>
+        </div>
+
+        <!-- Dynamic Advice Container -->
+        <div id="dimensionAdviceContainer" class="space-y-2.5 text-xs overflow-y-auto max-h-[380px] pr-1">
+        </div>
+
+        <!-- Motivational Quote Box -->
+        <div class="p-4 rounded-xl bg-gradient-to-r from-emerald-950/60 via-teal-950/60 to-slate-900 border border-emerald-500/30 text-emerald-200 text-xs italic flex items-center gap-3">
+          <i class="fa-solid fa-quote-left text-2xl text-emerald-400 opacity-60"></i>
+          <p id="motivationText" class="font-medium leading-relaxed">
+            "ขอส่งกำลังใจให้คนลำปาง บ้านท่าหลวง ทุกมิตินับเป็นความก้าวหน้าที่สำคัญ สู้ๆ เพื่อหุ่นดีและไร้โรค NCDs ยั่งยืน!"
+          </p>
+        </div>
+      </div>
+
+    </div>
+
+    <!-- SECTION 1 & 2 TREND ANALYSIS: WEEKLY BMI & SCORE TRENDS -->
+    <div class="glass-card rounded-2xl p-5 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3 flex-wrap gap-2">
+        <div>
+          <h3 class="font-bold text-slate-100 text-sm sm:text-base flex items-center gap-2">
+            <i class="fa-solid fa-chart-line text-cyan-400"></i>
+            กราฟเส้นแนวโน้มย้อนหลัง 24 สัปดาห์ (6 เดือน)
+          </h3>
+          <p class="text-[11px] text-slate-400">ประมวลผลค่าดัชนีมวลกาย (BMI) และคะแนนพฤติกรรมสุขภาพรวมแบบรายสัปดาห์</p>
+        </div>
+        <span class="text-xs text-slate-400 bg-slate-900 px-3 py-1 rounded-lg border border-slate-800">
+          <i class="fa-solid fa-clock-rotate-left mr-1 text-teal-400"></i>24 สัปดาห์ต่อเนื่อง
+        </span>
+      </div>
+
+      <div class="grid grid-cols-1 lg:grid-cols-2 gap-6">
+        <!-- BMI Trend Chart -->
+        <div class="space-y-2">
+          <h4 class="text-xs font-bold text-emerald-400 flex items-center gap-1.5">
+            <i class="fa-solid fa-arrow-trend-down"></i> แนวโน้มดัชนีมวลกาย (BMI Trend)
+          </h4>
+          <div class="h-60 relative w-full">
+            <canvas id="bmiTrendChart"></canvas>
+          </div>
+        </div>
+
+        <!-- Weekly Score Trend Chart -->
+        <div class="space-y-2">
+          <h4 class="text-xs font-bold text-amber-400 flex items-center gap-1.5">
+            <i class="fa-solid fa-arrow-trend-up"></i> แนวโน้มคะแนนสุขภาพรวมรายสัปดาห์ (Behavior Score Trend)
+          </h4>
+          <div class="h-60 relative w-full">
+            <canvas id="scoreTrendChart"></canvas>
+          </div>
+        </div>
+      </div>
+    </div>
+
+    <!-- SECTION 3: PRE VS POST PROJECT ASSESSMENT COMPARISON -->
+    <div class="glass-card rounded-2xl p-5 space-y-4">
+      <div class="flex items-center justify-between border-b border-slate-800 pb-3 flex-wrap gap-2">
+        <div>
+          <h3 class="font-bold text-slate-100 text-sm sm:text-base flex items-center gap-2">
+            <i class="fa-solid fa-scale-balanced text-teal-400"></i>
+            ส่วนที่ 3: การวิเคราะห์เปรียบเทียบพฤติกรรมสุขภาพ วันแรกรับ vs วันสุดท้ายของโครงการ
+          </h3>
+          <p class="text-[11px] text-slate-400">
+            เปรียบเทียบจากประเมิน Diet, Lifestyle และ Attitude Assessment (ระยะเวลา 6 เดือน)
+          </p>
+        </div>
+        <span class="text-xs font-bold bg-teal-500/20 text-teal-300 border border-teal-500/30 px-3 py-1 rounded-lg">
+          <i class="fa-solid fa-flag-checkered mr-1"></i> ประเมินผลสำเร็จโครงการ
+        </span>
+      </div>
+
+      <!-- 6 Dimensions Comparison Grid -->
+      <div id="section3-comparison-grid" class="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-4">
+      </div>
+    </div>
+
+  </main>
+
+  <!-- GOOGLE SHEETS DATA VIEWER MODAL -->
+  <div id="sheetModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-card w-full max-w-5xl h-[85vh] rounded-2xl flex flex-col overflow-hidden border border-slate-700 shadow-2xl">
+      
+      <!-- Sheet Modal Header -->
+      <div class="px-6 py-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-teal-500/20 text-teal-400 flex items-center justify-center text-lg">
+            <i class="fa-solid fa-table"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-100 text-base">ตารางข้อมูล Google Sheets (5 แท็บ)</h3>
+            <p class="text-xs text-slate-400">ตรวจสอบโครงสร้างและข้อมูลของโครงการ ท่าหลวงหุ่นดีNoNCDs</p>
+          </div>
+        </div>
+        <button onclick="toggleSheetModal()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Tabs Navigation -->
+      <div class="flex border-b border-slate-800 bg-slate-900/60 px-6 gap-2 pt-2 text-xs overflow-x-auto">
+        <button id="tab-Member_Profile" onclick="switchSheetTab('Member_Profile')" class="sheet-tab px-4 py-2 rounded-t-lg font-semibold bg-emerald-500 text-slate-950">
+          Member_Profile
+        </button>
+        <button id="tab-Diet_Assessment" onclick="switchSheetTab('Diet_Assessment')" class="sheet-tab px-4 py-2 rounded-t-lg font-semibold text-slate-400 hover:text-slate-200">
+          Diet_Assessment
+        </button>
+        <button id="tab-Lifestyle_Assessment" onclick="switchSheetTab('Lifestyle_Assessment')" class="sheet-tab px-4 py-2 rounded-t-lg font-semibold text-slate-400 hover:text-slate-200">
+          Lifestyle_Assessment
+        </button>
+        <button id="tab-Attitude_Assessment" onclick="switchSheetTab('Attitude_Assessment')" class="sheet-tab px-4 py-2 rounded-t-lg font-semibold text-slate-400 hover:text-slate-200">
+          Attitude_Assessment
+        </button>
+        <button id="tab-Daily_Log" onclick="switchSheetTab('Daily_Log')" class="sheet-tab px-4 py-2 rounded-t-lg font-semibold text-slate-400 hover:text-slate-200">
+          Daily_Log
+        </button>
+      </div>
+
+      <!-- Table Container -->
+      <div id="sheetTableContainer" class="flex-1 overflow-auto p-4">
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-6 py-3 bg-slate-900 border-t border-slate-800 flex justify-end text-xs text-slate-400">
+        <button onclick="toggleSheetModal()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition font-medium">
+          ปิดหน้าต่าง
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <!-- GOOGLE SHEETS LIVE CONFIG MODAL -->
+  <div id="configModal" class="fixed inset-0 bg-slate-950/80 backdrop-blur-sm z-50 hidden flex items-center justify-center p-4">
+    <div class="glass-card w-full max-w-2xl rounded-2xl flex flex-col overflow-hidden border border-slate-700 shadow-2xl">
+      
+      <!-- Modal Header -->
+      <div class="px-6 py-4 bg-slate-900 border-b border-slate-800 flex items-center justify-between">
+        <div class="flex items-center gap-3">
+          <div class="w-9 h-9 rounded-xl bg-emerald-500/20 text-emerald-400 flex items-center justify-center text-lg">
+            <i class="fa-solid fa-link"></i>
+          </div>
+          <div>
+            <h3 class="font-bold text-slate-100 text-base">ตั้งค่าการเชื่อมโยง Google Sheets สด</h3>
+            <p class="text-xs text-slate-400">เชื่อมต่อตาราง “ข้อมูลสุขภาพผู้เข้าร่วมโครงการ ท่าหลวงหุ่นดีNoNCDs”</p>
+          </div>
+        </div>
+        <button onclick="toggleConfigModal()" class="w-8 h-8 rounded-lg bg-slate-800 hover:bg-slate-700 text-slate-300 flex items-center justify-center transition">
+          <i class="fa-solid fa-xmark"></i>
+        </button>
+      </div>
+
+      <!-- Modal Body -->
+      <div class="p-6 space-y-5 text-xs text-slate-300 overflow-y-auto max-h-[75vh]">
+        
+        <!-- Input Web App URL -->
+        <div class="space-y-2">
+          <label class="block font-bold text-emerald-400 text-xs">
+            <i class="fa-solid fa-globe mr-1"></i> Google Apps Script Web App URL:
+          </label>
+          <div class="flex gap-2">
+            <input type="url" id="sheetAppUrlInput" placeholder="https://script.google.com/macros/s/.../exec"
+              class="flex-1 bg-slate-900 border border-slate-700 rounded-xl px-3 py-2.5 text-xs text-slate-100 focus:outline-none focus:border-emerald-500 font-mono">
+            <button onclick="saveAndSyncSheetData()" class="px-4 py-2.5 bg-emerald-500 hover:bg-emerald-400 text-slate-950 font-bold rounded-xl text-xs flex items-center gap-1.5 transition">
+              <i class="fa-solid fa-rotate"></i>
+              <span>ดึงข้อมูลสด</span>
+            </button>
+          </div>
+          <p class="text-[11px] text-slate-400">วาง URL จากการ Deploy Web App ของคุณที่นี่ แล้วกดปุ่มดึงข้อมูลสด</p>
+        </div>
+
+      </div>
+
+      <!-- Modal Footer -->
+      <div class="px-6 py-3 bg-slate-900 border-t border-slate-800 flex justify-between items-center text-xs text-slate-400">
+        <button onclick="resetToOfflineData()" class="text-rose-400 hover:text-rose-300 text-xs font-semibold">
+          <i class="fa-solid fa-arrow-rotate-left mr-1"></i>กลับไปใช้ข้อมูลจำลอง (Demo)
+        </button>
+        <button onclick="toggleConfigModal()" class="px-4 py-1.5 bg-slate-800 hover:bg-slate-700 text-slate-200 rounded-lg transition font-medium">
+          ปิดหน้าต่าง
+        </button>
+      </div>
+
+    </div>
+  </div>
+
+  <script>
+    // Global State
+    let currentMode = 'individual'; // 'individual' or 'group'
+    let currentMemberId = '1';
+    let currentSelectedDate = '2026-09-27';
+    let currentGroupFilter = 'ALL';
+    let isLiveConnected = false;
+
+    // Chart Instances
+    let spiderChartInstance = null;
+    let bmiChartInstance = null;
+    let scoreChartInstance = null;
+
+    // Google Sheets Data Stores
+    let MEMBERS_PROFILE = [];
+    let DIET_ASSESSMENT = {};
+    let LIFESTYLE_ASSESSMENT = {};
+    let ATTITUDE_ASSESSMENT = {};
+    let DAILY_LOGS = {};
+
+    // Seed Default Mock Data
+    function seedDefaultMockData() {
+      MEMBERS_PROFILE = [
+        { id: '1', name: 'อัญชลี น้อยมณี', gender: 'หญิง', age: 46, height: 156, initialWeight: 63.0, initialWaist: 86, targetWeight: 56.0, group: 'กลุ่มเสี่ยง NCDs', startDate: '2026-09-18' },
+        { id: '2', name: 'จันทนา สันมา', gender: 'หญิง', age: 60, height: 160, initialWeight: 52.0, initialWaist: 78, targetWeight: 48.0, group: 'กลุ่มเบาหวาน/ความดัน', startDate: '2026-09-18' },
+        { id: '3', name: 'อุไร เปื้อนต๊ะ', gender: 'หญิง', age: 49, height: 162, initialWeight: 78.0, initialWaist: 90, targetWeight: 68.0, group: 'กลุ่มรอบเอวเกิน', startDate: '2026-09-18' },
+        { id: '4', name: 'ขวัญเรือน ชันทอง', gender: 'หญิง', age: 36, height: 155, initialWeight: 82.0, initialWaist: 94, targetWeight: 70.0, group: 'กลุ่มรอบเอวเกิน', startDate: '2026-09-18' },
+        { id: '5', name: 'เรณู คำก๋อง', gender: 'หญิง', age: 50, height: 165, initialWeight: 69.0, initialWaist: 84, targetWeight: 60.0, group: 'กลุ่มประชาชนทั่วไป', startDate: '2026-09-18' }
+      ];
+
+      MEMBERS_PROFILE.forEach((m, idx) => {
+        const factor = 0.85 + (idx % 3) * 0.1;
+        DIET_ASSESSMENT[m.id] = {
+          baseline: { score: 52 + (idx * 3) % 15, text: 'บริโภคหวาน มัน เค็ม สูง' },
+          final: { score: 88 + (idx * 2) % 10, text: 'ลดหวาน มัน เค็ม ทานผักมากขึ้น' }
+        };
+
+        LIFESTYLE_ASSESSMENT[m.id] = {
+          exercise: { baseline: 45 + (idx * 4) % 15, final: 85 + (idx * 2) % 12 },
+          physicalAct: { baseline: 55 + (idx * 3) % 20, final: 90 + (idx * 2) % 8 },
+          sleep: { baseline: 58 + (idx * 2) % 18, final: 88 + (idx * 1) % 10 },
+          water: { baseline: 50 + (idx * 5) % 20, final: 92 + (idx * 1) % 7 }
+        };
+
+        ATTITUDE_ASSESSMENT[m.id] = {
+          baseline: { score: 50 + (idx * 4) % 15, perception: 'มองว่า NCDs ปรับเปลี่ยนยาก' },
+          final: { score: 92 + (idx * 2) % 8, perception: 'มีความมั่นใจสูงในการคุมอาหาร' }
+        };
+
+        DAILY_LOGS[m.id] = {};
+        const startDate = new Date('2026-04-01');
+        const targetWeightLoss = (m.initialWeight - m.targetWeight);
+
+        for (let day = 0; day < 180; day++) {
+          const d = new Date(startDate);
+          d.setDate(startDate.getDate() + day);
+          const dateStr = d.toISOString().split('T')[0];
+          const progress = day / 179.0;
+
+          const noise = (Math.sin(day * 0.5) * 0.3);
+          const currentW = +(m.initialWeight - (targetWeightLoss * progress * factor) + noise).toFixed(1);
+          const waistLoss = (m.initialWaist > 85) ? 8 : 5;
+          const currentWaist = +(m.initialWaist - (waistLoss * progress * factor) + (noise * 0.2)).toFixed(1);
+
+          const dietScore = Math.min(100, Math.round(DIET_ASSESSMENT[m.id].baseline.score + (35 * progress * factor)));
+          const exScore = Math.min(100, Math.round(LIFESTYLE_ASSESSMENT[m.id].exercise.baseline + (40 * progress * factor)));
+          const paScore = Math.min(100, Math.round(LIFESTYLE_ASSESSMENT[m.id].physicalAct.baseline + (35 * progress * factor)));
+          const sleepScore = Math.min(100, Math.round(LIFESTYLE_ASSESSMENT[m.id].sleep.baseline + (30 * progress * factor)));
+          const waterScore = Math.min(100, Math.round(LIFESTYLE_ASSESSMENT[m.id].water.baseline + (40 * progress * factor)));
+
+          const totalScore = Math.round((dietScore + exScore + paScore + sleepScore + waterScore) / 5);
+
+          DAILY_LOGS[m.id][dateStr] = {
+            dayNum: day + 1,
+            weekNum: Math.floor(day / 7) + 1,
+            weight: currentW,
+            waist: currentWaist,
+            diet: dietScore,
+            exercise: exScore,
+            physicalAct: paScore,
+            sleep: sleepScore,
+            water: waterScore,
+            totalScore: totalScore
+          };
+        }
+      });
+    }
+
+    function toggleConfigModal() {
+      const modal = document.getElementById('configModal');
+      modal.classList.toggle('hidden');
+    }
+
+    async function saveAndSyncSheetData() {
+      const url = document.getElementById('sheetAppUrlInput').value.trim();
+      if (!url) {
+        alert('กรุณากรอก Google Apps Script Web App URL');
+        return;
+      }
+
+      try {
+        const badge = document.getElementById('liveStatusBadge');
+        badge.className = 'px-2.5 py-1 bg-cyan-500/20 text-cyan-300 border border-cyan-500/30 rounded-lg text-xs font-semibold flex items-center gap-1.5';
+        badge.innerHTML = `<i class="fa-solid fa-spinner fa-spin text-cyan-400"></i><span>กำลังดึงข้อมูลสด...</span>`;
+
+        const res = await fetch(url);
+        if (!res.ok) throw new Error('Network response was not ok');
+        const data = await res.json();
+
+        if (!data.Member_Profile) {
+          throw new Error('โครงสร้างแผ่นงานไม่ถูกต้อง ตรวจสอบว่ามีแท็บ Member_Profile');
+        }
+
+        processLiveData(data);
+        localStorage.setItem('thaLuang_sheet_url', url);
+        isLiveConnected = true;
+
+        badge.className = 'px-2.5 py-1 bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 rounded-lg text-xs font-semibold flex items-center gap-1.5';
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-emerald-400"></span><span>เชื่อมต่อสดสำเร็จ (Live)</span>`;
+
+        toggleConfigModal();
+        renderDashboard();
+
+      } catch (err) {
+        console.error(err);
+        alert('ไม่สามารถดึงข้อมูลได้: ' + err.message);
+        const badge = document.getElementById('liveStatusBadge');
+        badge.className = 'px-2.5 py-1 bg-rose-500/20 text-rose-300 border border-rose-500/30 rounded-lg text-xs font-semibold flex items-center gap-1.5';
+        badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-rose-400"></span><span>เชื่อมต่อไม่สำเร็จ</span>`;
+      }
+    }
+
+    function processLiveData(data) {
+      if (data.Member_Profile && data.Member_Profile.length > 0) {
+        MEMBERS_PROFILE = data.Member_Profile.map((row, idx) => {
+          const rawId = row['รหัสบุคคล'] || row['รหัสบุคคล (ID)'] || row['ID'] || row['id'] || (idx + 1);
+          const weight = Number(row['น้ำหนัก (kg)'] || row['น้ำหนักแรกรับ'] || row['InitialWeight'] || 60);
+          const waist = Number(row['รอบเอว (cm)'] || row['รอบเอวแรกรับ'] || row['InitialWaist'] || 80);
+          const waistObesity = row['ภาวะอ้วนลงพุง'] || '';
+          
+          let group = row['สังกัดกลุ่ม'] || row['Group'] || 'กลุ่มประชาชนทั่วไป';
+          if (!row['สังกัดกลุ่ม'] && waistObesity === 'มี') {
+            group = 'กลุ่มรอบเอวเกิน';
+          }
+
+          return {
+            id: String(rawId),
+            name: row['ชื่อ-สกุล'] || row['ชื่อ-นามสกุล'] || row['Name'] || 'ผู้เข้าร่วม',
+            gender: row['เพศ'] || row['Gender'] || 'หญิง',
+            age: Number(row['อายุ'] || row['Age'] || 45),
+            height: Number(row['ส่วนสูง (cm)'] || row['Height'] || 155),
+            initialWeight: weight,
+            initialWaist: waist,
+            targetWeight: +(weight - 5).toFixed(1),
+            group: group,
+            startDate: row['วัน-เวลาที่บันทึก'] ? row['วัน-เวลาที่บันทึก'].split('T')[0] : '2026-09-18'
+          };
+        });
+      }
+
+      // Automatically generate daily logs if not provided in sheet
+      MEMBERS_PROFILE.forEach(m => {
+        if (!DAILY_LOGS[m.id]) {
+          DAILY_LOGS[m.id] = {};
+          const startDate = new Date('2026-04-01');
+          for (let day = 0; day < 180; day++) {
+            const d = new Date(startDate);
+            d.setDate(startDate.getDate() + day);
+            const dateStr = d.toISOString().split('T')[0];
+            
+            DAILY_LOGS[m.id][dateStr] = {
+              dayNum: day + 1,
+              weekNum: Math.floor(day / 7) + 1,
+              weight: m.initialWeight,
+              waist: m.initialWaist,
+              diet: 80,
+              exercise: 80,
+              physicalAct: 80,
+              sleep: 80,
+              water: 80,
+              totalScore: 80
+            };
+          }
+        }
+      });
+
+      if (MEMBERS_PROFILE.length > 0 && !MEMBERS_PROFILE.some(m => m.id === currentMemberId)) {
+        currentMemberId = MEMBERS_PROFILE[0].id;
+      }
+    }
+
+    function resetToOfflineData() {
+      localStorage.removeItem('thaLuang_sheet_url');
+      document.getElementById('sheetAppUrlInput').value = '';
+      seedDefaultMockData();
+      isLiveConnected = false;
+
+      const badge = document.getElementById('liveStatusBadge');
+      badge.className = 'px-2.5 py-1 bg-amber-500/20 text-amber-300 border border-amber-500/30 rounded-lg text-xs font-semibold flex items-center gap-1.5';
+      badge.innerHTML = `<span class="w-2 h-2 rounded-full bg-amber-400 animate-ping"></span><span>ข้อมูลจำลอง (Offline)</span>`;
+
+      toggleConfigModal();
+      renderDashboard();
+    }
+
+    function calcBMI(weightKg, heightCm) {
+      if (!heightCm || heightCm <= 0) return 0;
+      const heightM = heightCm / 100;
+      return +(weightKg / (heightM * heightM)).toFixed(1);
+    }
+
+    function getBMICategory(bmi) {
+      if (bmi < 18.5) return { label: 'น้ำหนักน้อย/ผอม', class: 'bg-blue-500/20 text-blue-400 border-blue-500/30' };
+      if (bmi <= 22.9) return { label: 'ปกติ (สุขภาพดี)', class: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' };
+      if (bmi <= 24.9) return { label: 'ท้วม / น้ำหนักเกิน', class: 'bg-amber-500/20 text-amber-400 border-amber-500/30' };
+      if (bmi <= 29.9) return { label: 'อ้วนระดับ 1', class: 'bg-orange-500/20 text-orange-400 border-orange-500/30' };
+      return { label: 'อ้วนระดับ 2 (เสี่ยงสูง)', class: 'bg-rose-500/20 text-rose-400 border-rose-500/30' };
+    }
+
+    function getScoreZone(score) {
+      if (score >= 80) return { label: 'ดี', zone: 'green', color: '#10B981', badgeClass: 'bg-emerald-500/20 text-emerald-400 border-emerald-500/30' };
+      if (score >= 60) return { label: 'ควรปรับปรุง', zone: 'yellow', color: '#F59E0B', badgeClass: 'bg-amber-500/20 text-amber-400 border-amber-500/30' };
+      return { label: 'เสี่ยง', zone: 'red', color: '#EF4444', badgeClass: 'bg-rose-500/20 text-rose-400 border-rose-500/30' };
+    }
+
+    function populateDropdownList(items) {
+      const list = document.getElementById('memberDropdownList');
+      if (!list) return;
+      list.innerHTML = '';
+      if (items.length === 0) {
+        list.innerHTML = `<div class="p-3 text-xs text-slate-500 text-center">ไม่พบข้อมูลรายชื่อ</div>`;
+        return;
+      }
+      items.forEach(m => {
+        const item = document.createElement('div');
+        item.className = 'p-2.5 hover:bg-slate-800 cursor-pointer text-xs border-b border-slate-800/50 flex items-center justify-between';
+        item.onclick = () => selectMember(m.id);
+        item.innerHTML = `
+          <div class="flex items-center gap-2">
+            <span class="font-bold text-emerald-400 bg-emerald-950 px-2 py-0.5 rounded border border-emerald-800">ID: ${m.id}</span>
+            <span class="text-slate-200 font-medium">${m.name}</span>
+          </div>
+          <span class="text-[10px] text-slate-400 bg-slate-900 px-2 py-0.5 rounded">${m.group}</span>
+        `;
+        list.appendChild(item);
+      });
+    }
+
+    function showDropdown() {
+      const list = document.getElementById('memberDropdownList');
+      if (list) list.classList.remove('hidden');
+      filterMemberList();
+    }
+
+    function filterMemberList() {
+      const input = document.getElementById('memberSearchInput');
+      if (!input) return;
+      const query = input.value.toLowerCase().trim();
+      const filtered = MEMBERS_PROFILE.filter(m => 
+        m.id.toLowerCase().includes(query) || m.name.toLowerCase().includes(query)
+      );
+      populateDropdownList(filtered);
+    }
+
+    document.addEventListener('click', function(e) {
+      const wrapper = document.getElementById('individual-filter-wrapper');
+      const list = document.getElementById('memberDropdownList');
+      if (wrapper && list && !wrapper.contains(e.target)) {
+        list.classList.add('hidden');
+      }
+    });
+
+    function selectMember(id) {
+      currentMemberId = id;
+      const member = MEMBERS_PROFILE.find(m => m.id === id);
+      if (member) {
+        const input = document.getElementById('memberSearchInput');
+        if (input) input.value = `ID: ${member.id} - ${member.name}`;
+      }
+      const list = document.getElementById('memberDropdownList');
+      if (list) list.classList.add('hidden');
+
+      if (currentMode === 'individual') {
+        renderDashboard();
+      } else {
+        setMode('individual');
+      }
+    }
+
+    function setMode(mode) {
+      currentMode = mode;
+      const btnInd = document.getElementById('btn-mode-individual');
+      const btnGrp = document.getElementById('btn-mode-group');
+      const dateFilter = document.getElementById('date-filter-wrapper');
+
+      if (mode === 'individual') {
+        if (btnInd) btnInd.className = 'px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 bg-emerald-500 text-slate-950 shadow';
+        if (btnGrp) btnGrp.className = 'px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-slate-200';
+        if (dateFilter) dateFilter.classList.remove('opacity-50', 'pointer-events-none');
+      } else {
+        if (btnGrp) btnGrp.className = 'px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 bg-teal-500 text-slate-950 shadow';
+        if (btnInd) btnInd.className = 'px-4 py-2 rounded-lg text-xs font-bold transition flex items-center gap-2 text-slate-400 hover:text-slate-200';
+      }
+      renderDashboard();
+    }
+
+    function onGroupSelectChange() {
+      const groupSel = document.getElementById('groupSelect');
+      if (groupSel) currentGroupFilter = groupSel.value;
+      renderDashboard();
+    }
+
+    function onDateChange() {
+      const dateInput = document.getElementById('selectedDateInput');
+      if (dateInput) currentSelectedDate = dateInput.value;
+      renderDashboard();
+    }
+
+    function renderMemberBanner() {
+      const banner = document.getElementById('memberInfoBanner');
+      if (!banner) return;
+      
+      if (currentMode === 'individual') {
+        const m = MEMBERS_PROFILE.find(x => x.id === currentMemberId) || MEMBERS_PROFILE[0];
+        if (!m) return;
+        const baselineBMI = calcBMI(m.initialWeight, m.height);
+        const bmiCat = getBMICategory(baselineBMI);
+
+        banner.className = 'glass-card rounded-2xl p-4 border-l-4 border-l-emerald-500 flex flex-wrap items-center justify-between gap-4';
+        banner.innerHTML = `
+          <div class="flex items-center gap-4">
+            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-emerald-500 to-teal-700 flex items-center justify-center text-slate-950 text-2xl font-black shadow-lg">
+              ${m.gender === 'ชาย' ? '<i class="fa-solid fa-user-doctor"></i>' : '<i class="fa-solid fa-user-large"></i>'}
+            </div>
+            <div>
+              <div class="flex items-center gap-2 flex-wrap">
+                <span class="text-xs font-black bg-emerald-500/20 text-emerald-400 px-2.5 py-0.5 rounded-md border border-emerald-500/30">ID: ${m.id}</span>
+                <h2 class="text-base sm:text-lg font-bold text-slate-100">${m.name}</h2>
+                <span class="text-xs text-slate-400">(${m.gender}, อายุ ${m.age} ปี)</span>
+              </div>
+              <p class="text-xs text-slate-400 mt-1 flex items-center gap-3 flex-wrap">
+                <span><i class="fa-solid fa-ruler-vertical text-teal-400 mr-1"></i>ส่วนสูง: <strong>${m.height} cm</strong></span>
+                <span><i class="fa-solid fa-bullseye text-cyan-400 mr-1"></i>เป้าหมายน้ำหนัก: <strong>${m.targetWeight} kg</strong></span>
+                <span><i class="fa-solid fa-users text-indigo-400 mr-1"></i>กลุ่ม: <strong>${m.group}</strong></span>
+              </p>
+            </div>
+          </div>
+          <div class="flex items-center gap-3">
+            <div class="text-right">
+              <span class="text-[10px] text-slate-400 block uppercase font-semibold">สถานะแรกรับ (Baseline BMI)</span>
+              <span class="text-sm font-bold text-slate-200">${baselineBMI} (${bmiCat.label})</span>
+            </div>
+          </div>
+        `;
+      } else {
+        const filteredMembers = currentGroupFilter === 'ALL' 
+          ? MEMBERS_PROFILE 
+          : MEMBERS_PROFILE.filter(m => m.group === currentGroupFilter);
+
+        const count = filteredMembers.length || 1;
+        const avgAge = (filteredMembers.reduce((a,b) => a + b.age, 0) / count).toFixed(1);
+        const avgStartWeight = (filteredMembers.reduce((a,b) => a + b.initialWeight, 0) / count).toFixed(1);
+
+        banner.className = 'glass-card rounded-2xl p-4 border-l-4 border-l-teal-500 flex flex-wrap items-center justify-between gap-4';
+        banner.innerHTML = `
+          <div class="flex items-center gap-4">
+            <div class="w-14 h-14 rounded-2xl bg-gradient-to-br from-teal-500 to-cyan-700 flex items-center justify-center text-slate-950 text-2xl font-black shadow-lg">
+              <i class="fa-solid fa-users"></i>
+            </div>
+            <div>
+              <div class="flex items-center gap-2">
+                <h2 class="text-base sm:text-lg font-bold text-slate-100">ภาพรวมกลุ่ม: ${currentGroupFilter === 'ALL' ? 'ผู้เข้าร่วมทั้งหมดทุกกลุ่ม' : currentGroupFilter}</h2>
+                <span class="text-xs font-bold bg-teal-500/20 text-teal-300 px-2.5 py-0.5 rounded-full border border-teal-500/30">
+                  จำนวน ${filteredMembers.length} คน
+                </span>
+              </div>
+              <p class="text-xs text-slate-400 mt-1 flex items-center gap-4">
+                <span>อายุเฉลี่ย: <strong>${avgAge} ปี</strong></span>
+                <span>น้ำหนักแรกรับเฉลี่ย: <strong>${avgStartWeight} kg</strong></span>
+                <span>พื้นที่: <strong>บ้านท่าหลวง ต.ท่าหลวง อ.เมืองลำปาง</strong></span>
+              </p>
+            </div>
+          </div>
+          <div class="text-xs text-teal-300 font-semibold bg-slate-900/80 px-3 py-2 rounded-xl border border-teal-800">
+            <i class="fa-solid fa-chart-simple mr-1"></i> แสดงผลค่าเฉลี่ยสรุปกลุ่ม
+          </div>
+        `;
+      }
+    }
+
+    function renderSection1() {
+      if (currentMode === 'individual') {
+        const m = MEMBERS_PROFILE.find(x => x.id === currentMemberId) || MEMBERS_PROFILE[0];
+        if (!m) return;
+        const log = (DAILY_LOGS[m.id] && DAILY_LOGS[m.id][currentSelectedDate]) 
+          ? DAILY_LOGS[m.id][currentSelectedDate] 
+          : { weight: m.initialWeight, waist: m.initialWaist, totalScore: 80 };
+
+        const baseWeight = m.initialWeight;
+        const currentWeight = log.weight;
+        const weightDelta = +(currentWeight - baseWeight).toFixed(1);
+
+        const baseBMI = calcBMI(baseWeight, m.height);
+        const currentBMI = calcBMI(currentWeight, m.height);
+        const bmiStatus = getBMICategory(currentBMI);
+
+        const baseWaist = m.initialWaist;
+        const currentWaist = log.waist;
+        const waistDelta = +(currentWaist - baseWaist).toFixed(1);
+
+        const dailyScore = log.totalScore;
+        const scoreZone = getScoreZone(dailyScore);
+
+        document.getElementById('card-weight-current').innerText = `${currentWeight} kg`;
+        document.getElementById('card-weight-baseline').innerText = `${baseWeight} kg`;
+        
+        const wDeltaElem = document.getElementById('card-weight-delta');
+        if (wDeltaElem) {
+          wDeltaElem.innerText = `${weightDelta <= 0 ? '' : '+'}${weightDelta} kg`;
+          wDeltaElem.className = `font-bold px-2 py-0.5 rounded-full text-[11px] ${weightDelta <= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`;
+        }
+
+        document.getElementById('card-bmi-current').innerText = currentBMI;
+        document.getElementById('card-bmi-baseline').innerText = baseBMI;
+
+        const bmiStatElem = document.getElementById('card-bmi-status');
+        if (bmiStatElem) {
+          bmiStatElem.innerText = bmiStatus.label;
+          bmiStatElem.className = `font-bold px-2 py-0.5 rounded-full text-[11px] border ${bmiStatus.class}`;
+        }
+
+        document.getElementById('card-waist-current').innerText = `${currentWaist} cm`;
+        document.getElementById('card-waist-baseline').innerText = `${baseWaist} cm`;
+
+        const waistDeltaElem = document.getElementById('card-waist-delta');
+        if (waistDeltaElem) {
+          waistDeltaElem.innerText = `${waistDelta <= 0 ? '' : '+'}${waistDelta} cm`;
+          waistDeltaElem.className = `font-bold px-2 py-0.5 rounded-full text-[11px] ${waistDelta <= 0 ? 'bg-emerald-500/20 text-emerald-400' : 'bg-rose-500/20 text-rose-400'}`;
+        }
+
+        document.getElementById('card-score-current').innerText = `${dailyScore} / 100`;
+
+        const scoreBadge = document.getElementById('card-score-badge');
+        if (scoreBadge) {
+          scoreBadge.innerText = scoreZone.label;
+          scoreBadge.className = `font-bold px-2 py-0.5 rounded-full text-[11px] border ${scoreZone.badgeClass}`;
+        }
+
+      } else {
+        const filteredMembers = currentGroupFilter === 'ALL' 
+          ? MEMBERS_PROFILE 
+          : MEMBERS_PROFILE.filter(m => m.group === currentGroupFilter);
+
+        let totalBaseW = 0, totalCurrW = 0, totalBaseWaist = 0, totalCurrWaist = 0, totalScoreSum = 0;
+        let count = filteredMembers.length || 1;
+
+        filteredMembers.forEach(m => {
+          const log = (DAILY_LOGS[m.id] && DAILY_LOGS[m.id][currentSelectedDate]) 
+            ? DAILY_LOGS[m.id][currentSelectedDate] 
+            : { weight: m.initialWeight, waist: m.initialWaist, totalScore: 80 };
+          
+          totalBaseW += m.initialWeight;
+          totalCurrW += log.weight;
+          totalBaseWaist += m.initialWaist;
+          totalCurrWaist += log.waist;
+          totalScoreSum += log.totalScore;
+        });
+
+        const avgBaseW = +(totalBaseW / count).toFixed(1);
+        const avgCurrW = +(totalCurrW / count).toFixed(1);
+        const avgHeight = +(filteredMembers.reduce((a,b)=>a+b.height,0)/count).toFixed(1);
+        const avgBaseBMI = calcBMI(avgBaseW, avgHeight);
+        const avgCurrBMI = calcBMI(avgCurrW, avgHeight);
+        const bmiStatus = getBMICategory(avgCurrBMI);
+
+        const avgBaseWaist = +(totalBaseWaist / count).toFixed(1);
+        const avgCurrWaist = +(totalCurrWaist / count).toFixed(1);
+        const avgScore = Math.round(totalScoreSum / count);
+        const scoreZone = getScoreZone(avgScore);
+
+        document.getElementById('card-weight-current').innerText = `${avgCurrW} kg (เฉลี่ย)`;
+        document.getElementById('card-weight-baseline').innerText = `${avgBaseW} kg`;
+
+        const wDelta = +(avgCurrW - avgBaseW).toFixed(1);
+        const wDeltaElem = document.getElementById('card-weight-delta');
+        if (wDeltaElem) wDeltaElem.innerText = `${wDelta <= 0 ? '' : '+'}${wDelta} kg`;
+
+        document.getElementById('card-bmi-current').innerText = avgCurrBMI;
+        document.getElementById('card-bmi-baseline').innerText = avgBaseBMI;
+
+        const bmiStatElem = document.getElementById('card-bmi-status');
+        if (bmiStatElem) {
+          bmiStatElem.innerText = bmiStatus.label;
+          bmiStatElem.className = `font-bold px-2 py-0.5 rounded-full text-[11px] border ${bmiStatus.class}`;
+        }
+
+        document.getElementById('card-waist-current').innerText = `${avgCurrWaist} cm`;
+        document.getElementById('card-waist-baseline').innerText = `${avgBaseWaist} cm`;
+
+        const waistDelta = +(avgCurrWaist - avgBaseWaist).toFixed(1);
+        const waistDeltaElem = document.getElementById('card-waist-delta');
+        if (waistDeltaElem) waistDeltaElem.innerText = `${waistDelta <= 0 ? '' : '+'}${waistDelta} cm`;
+
+        document.getElementById('card-score-current').innerText = `${avgScore} / 100`;
+
+        const scoreBadge = document.getElementById('card-score-badge');
+        if (scoreBadge) {
+          scoreBadge.innerText = scoreZone.label;
+          scoreBadge.className = `font-bold px-2 py-0.5 rounded-full text-[11px] border ${scoreZone.badgeClass}`;
+        }
+      }
+    }
+
+    function renderSection2() {
+      const dateDisp = document.getElementById('radar-date-display');
+      if (dateDisp) dateDisp.innerText = currentSelectedDate;
+
+      let dimScores = { diet: 80, exercise: 80, physicalAct: 80, sleep: 80, water: 80 };
+
+      if (currentMode === 'individual') {
+        const m = MEMBERS_PROFILE.find(x => x.id === currentMemberId) || MEMBERS_PROFILE[0];
+        if (m) {
+          const log = (DAILY_LOGS[m.id] && DAILY_LOGS[m.id][currentSelectedDate]) 
+            ? DAILY_LOGS[m.id][currentSelectedDate] 
+            : { diet: 80, exercise: 80, physicalAct: 80, sleep: 80, water: 80 };
+
+          dimScores = {
+            diet: log.diet,
+            exercise: log.exercise,
+            physicalAct: log.physicalAct,
+            sleep: log.sleep,
+            water: log.water
+          };
+        }
+      }
+
+      const radarData = [dimScores.diet, dimScores.exercise, dimScores.physicalAct, dimScores.sleep, dimScores.water];
+      
+      const canvasCtx = document.getElementById('spiderRadarChart');
+      if (canvasCtx) {
+        const ctx = canvasCtx.getContext('2d');
+        if (spiderChartInstance) spiderChartInstance.destroy();
+
+        spiderChartInstance = new Chart(ctx, {
+          type: 'radar',
+          data: {
+            labels: ['การกินอาหาร', 'การออกกำลังกาย', 'กิจกรรมทางกาย', 'การนอนหลับ', 'การดื่มน้ำ'],
+            datasets: [
+              {
+                label: 'คะแนนประเมิน (0-100)',
+                data: radarData,
+                backgroundColor: 'rgba(16, 185, 129, 0.25)',
+                borderColor: '#10B981',
+                borderWidth: 2,
+                pointBackgroundColor: '#00F2FE',
+                pointBorderColor: '#fff'
+              },
+              {
+                label: 'เกณฑ์มาตรฐาน (ดี)',
+                data: [80, 80, 80, 80, 80],
+                borderColor: 'rgba(245, 158, 11, 0.5)',
+                borderWidth: 1.5,
+                borderDash: [4, 4],
+                pointRadius: 0,
+                fill: false
+              }
+            ]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: true,
+            scales: {
+              r: {
+                min: 0,
+                max: 100,
+                ticks: { display: false, stepSize: 20 },
+                grid: { color: 'rgba(255, 255, 255, 0.1)' },
+                angleLines: { color: 'rgba(255, 255, 255, 0.15)' },
+                pointLabels: { color: '#CBD5E1', font: { family: 'Sarabun', size: 11, weight: 'bold' } }
+              }
+            },
+            plugins: {
+              legend: { labels: { color: '#94A3B8', font: { family: 'Sarabun', size: 10 } }, position: 'bottom' }
+            }
+          }
+        });
+      }
+
+      const dimsList = [
+        { key: 'diet', label: 'การกินอาหาร', icon: 'fa-utensils', val: dimScores.diet },
+        { key: 'exercise', label: 'การออกกำลังกาย', icon: 'fa-person-running', val: dimScores.exercise },
+        { key: 'physicalAct', label: 'กิจกรรมทางกาย', icon: 'fa-child-reaching', val: dimScores.physicalAct },
+        { key: 'sleep', label: 'การนอนหลับ', icon: 'fa-bed', val: dimScores.sleep },
+        { key: 'water', label: 'การดื่มน้ำ', icon: 'fa-bottle-water', val: dimScores.water }
+      ];
+
+      const cardsGrid = document.getElementById('dimension-cards-grid');
+      if (cardsGrid) {
+        cardsGrid.innerHTML = '';
+        dimsList.forEach(d => {
+          const zone = getScoreZone(d.val);
+          const card = document.createElement('div');
+          card.className = `glass-card rounded-xl p-2.5 text-center border-t-2 ${zone.zone === 'green' ? 'border-t-emerald-500' : zone.zone === 'yellow' ? 'border-t-amber-500' : 'border-t-rose-500'}`;
+          card.innerHTML = `
+            <div class="text-slate-400 text-xs mb-1"><i class="fa-solid ${d.icon} mr-1"></i>${d.label}</div>
+            <div class="text-base font-extrabold text-slate-100">${d.val}</div>
+            <span class="inline-block mt-1 text-[10px] font-bold px-2 py-0.5 rounded-full border ${zone.badgeClass}">
+              ${zone.label}
+            </span>
+          `;
+          cardsGrid.appendChild(card);
+        });
+      }
+
+      const adviceContainer = document.getElementById('dimensionAdviceContainer');
+      if (adviceContainer) {
+        adviceContainer.innerHTML = '';
+        dimsList.forEach(d => {
+          const zone = getScoreZone(d.val);
+          const item = document.createElement('div');
+          item.className = `p-2.5 rounded-xl border ${zone.zone === 'green' ? 'bg-emerald-950/30 border-emerald-800/40 text-emerald-200' : zone.zone === 'yellow' ? 'bg-amber-950/30 border-amber-800/40 text-amber-200' : 'bg-rose-950/30 border-rose-800/40 text-rose-200'}`;
+          item.innerHTML = `<strong>${d.label}:</strong> ทำได้ดีต่อเนื่อง รักษาพฤติกรรมเพื่อสุขภาพที่ยั่งยืน`;
+          adviceContainer.appendChild(item);
+        });
+      }
+
+      const motivationElem = document.getElementById('motivationText');
+      if (motivationElem) {
+        const mName = currentMode === 'individual' 
+          ? (MEMBERS_PROFILE.find(x => x.id === currentMemberId) || {}).name || 'ท่าน'
+          : 'ชาวบ้านท่าหลวงทุกคน';
+
+        motivationElem.innerText = `"ขอส่งกำลังใจให้คุณ${mName} และพี่น้องคนลำปาง บ้านท่าหลวง ทุกมิตินับเป็นความก้าวหน้าที่สำคัญ สู้ๆ เพื่อหุ่นดีและไร้โรค NCDs ยั่งยืน!"`;
+      }
+    }
+
+    function renderTrendCharts() {
+      const weekLabels = Array.from({length: 24}, (_, i) => `สัปดาห์ ${i + 1}`);
+      let bmiWeeklyData = [];
+      let scoreWeeklyData = [];
+
+      const m = MEMBERS_PROFILE.find(x => x.id === currentMemberId) || MEMBERS_PROFILE[0];
+      if (m) {
+        const logsObj = DAILY_LOGS[m.id] || {};
+        for (let w = 1; w <= 24; w++) {
+          let wWeightSum = 0, wScoreSum = 0, c = 0;
+          Object.values(logsObj).forEach(l => {
+            if (l.weekNum === w) {
+              wWeightSum += l.weight;
+              wScoreSum += l.totalScore;
+              c++;
+            }
+          });
+          const avgW = c > 0 ? (wWeightSum / c) : m.initialWeight;
+          const avgS = c > 0 ? (wScoreSum / c) : 80;
+          bmiWeeklyData.push(calcBMI(avgW, m.height));
+          scoreWeeklyData.push(+avgS.toFixed(1));
+        }
+      }
+
+      const elemBMI = document.getElementById('bmiTrendChart');
+      if (elemBMI) {
+        const ctx1 = elemBMI.getContext('2d');
+        if (bmiChartInstance) bmiChartInstance.destroy();
+
+        bmiChartInstance = new Chart(ctx1, {
+          type: 'line',
+          data: {
+            labels: weekLabels,
+            datasets: [{
+              label: 'ดัชนีมวลกาย (BMI)',
+              data: bmiWeeklyData,
+              borderColor: '#10B981',
+              backgroundColor: 'rgba(16, 185, 129, 0.1)',
+              fill: true,
+              tension: 0.35,
+              pointRadius: 3,
+              pointBackgroundColor: '#00F2FE'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: { grid: { color: 'rgba(255, 255, 255, 0.08)' }, ticks: { color: '#94A3B8', font: { family: 'Sarabun' } } },
+              x: { grid: { display: false }, ticks: { color: '#94A3B8', font: { family: 'Sarabun', size: 10 }, maxRotation: 45 } }
+            },
+            plugins: { legend: { display: false } }
+          }
+        });
+      }
+
+      const elemScore = document.getElementById('scoreTrendChart');
+      if (elemScore) {
+        const ctx2 = elemScore.getContext('2d');
+        if (scoreChartInstance) scoreChartInstance.destroy();
+
+        scoreChartInstance = new Chart(ctx2, {
+          type: 'line',
+          data: {
+            labels: weekLabels,
+            datasets: [{
+              label: 'คะแนนพฤติกรรมรวมเฉลี่ย',
+              data: scoreWeeklyData,
+              borderColor: '#F59E0B',
+              backgroundColor: 'rgba(245, 158, 11, 0.1)',
+              fill: true,
+              tension: 0.35,
+              pointRadius: 3,
+              pointBackgroundColor: '#F59E0B'
+            }]
+          },
+          options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            scales: {
+              y: { min: 40, max: 100, grid: { color: 'rgba(255, 255, 255, 0.08)' }, ticks: { color: '#94A3B8', font: { family: 'Sarabun' } } },
+              x: { grid: { display: false }, ticks: { color: '#94A3B8', font: { family: 'Sarabun', size: 10 }, maxRotation: 45 } }
+            },
+            plugins: { legend: { display: false } }
+          }
+        });
+      }
+    }
+
+    function renderSection3() {
+      const container = document.getElementById('section3-comparison-grid');
+      if (!container) return;
+      container.innerHTML = '';
+
+      const mId = currentMemberId;
+      const diet = DIET_ASSESSMENT[mId] || { baseline: { score: 55 }, final: { score: 85 } };
+      const attitude = ATTITUDE_ASSESSMENT[mId] || { baseline: { score: 50 }, final: { score: 88 } };
+      const lifestyle = LIFESTYLE_ASSESSMENT[mId] || {
+        exercise: { baseline: 50, final: 85 },
+        physicalAct: { baseline: 55, final: 90 },
+        sleep: { baseline: 60, final: 88 },
+        water: { baseline: 50, final: 92 }
+      };
+
+      const dimensions = [
+        { key: 'diet', title: 'พฤติกรรมการบริโภคอาหาร', icon: 'fa-utensils', color: 'text-amber-400', source: 'Diet_Assessment', pre: diet.baseline.score, post: diet.final.score },
+        { key: 'attitude', title: 'ทัศนคติการรับรู้ตนเองต่อสุขภาพ', icon: 'fa-brain', color: 'text-indigo-400', source: 'Attitude_Assessment', pre: attitude.baseline.score, post: attitude.final.score },
+        { key: 'exercise', title: 'พฤติกรรมการออกกำลังกาย', icon: 'fa-person-running', color: 'text-emerald-400', source: 'Lifestyle_Assessment', pre: lifestyle.exercise.baseline, post: lifestyle.exercise.final },
+        { key: 'physicalAct', title: 'กิจกรรมทางกายประจำวัน', icon: 'fa-person-walking', color: 'text-teal-400', source: 'Lifestyle_Assessment', pre: lifestyle.physicalAct.baseline, post: lifestyle.physicalAct.final },
+        { key: 'sleep', title: 'การนอนหลับพักผ่อน', icon: 'fa-bed', color: 'text-cyan-400', source: 'Lifestyle_Assessment', pre: lifestyle.sleep.baseline, post: lifestyle.sleep.final },
+        { key: 'water', title: 'การดื่มน้ำสะอาดประจำวัน', icon: 'fa-bottle-water', color: 'text-blue-400', source: 'Lifestyle_Assessment', pre: lifestyle.water.baseline, post: lifestyle.water.final }
+      ];
+
+      dimensions.forEach(dim => {
+        const diff = dim.post - dim.pre;
+
+        const card = document.createElement('div');
+        card.className = 'glass-card rounded-2xl p-4 flex flex-col justify-between hover:border-slate-600 transition';
+        card.innerHTML = `
+          <div>
+            <div class="flex items-center justify-between mb-3">
+              <div class="flex items-center gap-2">
+                <i class="fa-solid ${dim.icon} ${dim.color}"></i>
+                <h3 class="text-xs font-bold text-slate-200">${dim.title}</h3>
+              </div>
+              <span class="text-[9px] text-slate-400 bg-slate-900 px-2 py-0.5 rounded border border-slate-800">${dim.source}</span>
+            </div>
+
+            <div class="space-y-2 mt-2">
+              <div>
+                <div class="flex justify-between text-[11px] mb-1">
+                  <span class="text-slate-400">วันแรกรับ (Baseline)</span>
+                  <span class="font-bold text-slate-300">${dim.pre} คะแนน</span>
+                </div>
+                <div class="w-full bg-slate-900 rounded-full h-2 overflow-hidden">
+                  <div class="bg-slate-600 h-2 rounded-full" style="width: ${dim.pre}%"></div>
+                </div>
+              </div>
+
+              <div>
+                <div class="flex justify-between text-[11px] mb-1">
+                  <span class="text-emerald-400 font-medium">วันสุดท้าย (End-Project)</span>
+                  <span class="font-bold text-emerald-400">${dim.post} คะแนน</span>
+                </div>
+                <div class="w-full bg-slate-900 rounded-full h-2 overflow-hidden">
+                  <div class="bg-gradient-to-r from-emerald-500 to-teal-400 h-2 rounded-full" style="width: ${dim.post}%"></div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          <div class="mt-4 pt-3 border-t border-slate-800 flex items-center justify-between text-xs">
+            <span class="text-slate-400">การพัฒนา:</span>
+            <span class="font-bold px-2.5 py-0.5 rounded-full bg-emerald-500/20 text-emerald-300 border border-emerald-500/30 flex items-center gap-1">
+              <i class="fa-solid fa-arrow-up text-[10px]"></i> +${diff} คะแนน
+            </span>
+          </div>
+        `;
+        container.appendChild(card);
+      });
+    }
+
+    let currentActiveTab = 'Member_Profile';
+
+    function toggleSheetModal() {
+      const modal = document.getElementById('sheetModal');
+      if (modal) {
+        modal.classList.toggle('hidden');
+        if (!modal.classList.contains('hidden')) {
+          renderSheetTable(currentActiveTab);
+        }
+      }
+    }
+
+    function switchSheetTab(tabName) {
+      currentActiveTab = tabName;
+      document.querySelectorAll('.sheet-tab').forEach(b => {
+        b.className = 'sheet-tab px-4 py-2 rounded-t-lg font-semibold text-slate-400 hover:text-slate-200';
+      });
+      const activeBtn = document.getElementById(`tab-${tabName}`);
+      if (activeBtn) activeBtn.className = 'sheet-tab px-4 py-2 rounded-t-lg font-semibold bg-emerald-500 text-slate-950';
+      renderSheetTable(tabName);
+    }
+
+    function renderSheetTable(tabName) {
+      const container = document.getElementById('sheetTableContainer');
+      if (!container) return;
+
+      let headers = ['รหัสบุคคล', 'ชื่อ-สกุล', 'เพศ', 'อายุ', 'ส่วนสูง (cm)', 'น้ำหนัก (kg)', 'บ้านเลขที่', 'ภาวะอ้วนลงพุง'];
+      let rows = MEMBERS_PROFILE.map(m => [m.id, m.name, m.gender, m.age, m.height, m.initialWeight, '-', m.group]);
+
+      let html = `<table class="w-full text-xs text-left text-slate-300 border-collapse">
+        <thead class="bg-slate-900 uppercase text-[10px] text-emerald-400 sticky top-0">
+          <tr>${headers.map(h => `<th class="p-3 border-b border-slate-800">${h}</th>`).join('')}</tr>
+        </thead>
+        <tbody class="divide-y divide-slate-800/60 bg-slate-950/50">
+          ${rows.map(r => `<tr class="hover:bg-slate-900/80">${r.map(cell => `<td class="p-3">${cell}</td>`).join('')}</tr>`).join('')}
+        </tbody>
+      </table>`;
+
+      container.innerHTML = html;
+    }
+
+    function renderDashboard() {
+      renderMemberBanner();
+      renderSection1();
+      renderSection2();
+      renderTrendCharts();
+      renderSection3();
+    }
+
+    window.onload = function() {
+      seedDefaultMockData();
+
+      const savedUrl = localStorage.getItem('thaLuang_sheet_url');
+      if (savedUrl) {
+        const inputUrl = document.getElementById('sheetAppUrlInput');
+        if (inputUrl) inputUrl.value = savedUrl;
+        saveAndSyncSheetData();
+      } else {
+        const initialMember = MEMBERS_PROFILE[0];
+        if (initialMember) {
+          const inputElem = document.getElementById('memberSearchInput');
+          if (inputElem) inputElem.value = `ID: ${initialMember.id} - ${initialMember.name}`;
+        }
+        renderDashboard();
+      }
+    };
+  </script>
+</body>
+</html>
